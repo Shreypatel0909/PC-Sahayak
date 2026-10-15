@@ -31,7 +31,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 # Validated non-secret configuration (YAML)
 # --------------------------------------------------------------------------- #
 class ProjectConfig(BaseModel):
-    name: str = "PC Helper & Troubleshooting"
+    name: str = "PC-Sahayak"
     description: str = ""
 
 

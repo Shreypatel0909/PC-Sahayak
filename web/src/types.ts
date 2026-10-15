@@ -89,4 +89,6 @@ export interface Meta {
   llm: { configured: boolean; text_model: string; vision_model: string; rag: boolean };
   kb: KbInfo;
   last_specs: Specs | null;
+  version: string;
+  share_urls: string[];
 }

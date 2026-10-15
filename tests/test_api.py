@@ -185,3 +185,42 @@ def test_resolve_button_summarises_then_unlock_allows_chatting(client):
     assert unlocked["locked"] is False
     r = client.post(f"/api/conversations/{cid}/messages", data={"text": "It came back"})
     assert r.status_code == 200
+
+
+# --- local-network mode -------------------------------------------------------
+@pytest.fixture()
+def lan_client(context):
+    from api.main import create_app
+
+    # TestClient requests come from host "testclient", i.e. another device.
+    with TestClient(create_app(context, access_code="K7Q2M9")) as c:
+        yield c
+
+
+def test_network_mode_blocks_devices_without_the_link(lan_client):
+    assert lan_client.get("/api/meta").status_code == 401
+    page = lan_client.get("/", follow_redirects=False)
+    assert page.status_code == 401 and "access link" in page.text
+    assert lan_client.get("/?access=WRONG", follow_redirects=False).status_code == 401
+
+
+def test_network_mode_share_link_sets_a_cookie(lan_client):
+    r = lan_client.get("/?access=K7Q2M9", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/"
+    assert "K7Q2M9" not in r.headers["set-cookie"]  # the code itself is never stored
+    meta = lan_client.get("/api/meta")
+    assert meta.status_code == 200
+    assert meta.json()["share_urls"] == []  # share links are only shown on the host PC
+
+
+def test_this_computer_never_needs_the_code(context):
+    from api.main import create_app
+
+    with TestClient(create_app(context, access_code="K7Q2M9"), client=("127.0.0.1", 50000)) as c:
+        assert c.get("/api/meta").status_code == 200
+
+
+def test_meta_reports_version(client):
+    from pc_helper import __version__
+
+    assert client.get("/api/meta").json()["version"] == __version__ == "1.3.0"

@@ -13,6 +13,7 @@ If the React app has been built (``npm run build`` in web/), it is served at /.
 from __future__ import annotations
 
 import base64
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
@@ -22,12 +23,14 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 
+from pc_helper import __version__
 from pc_helper.core.context import AppContext
 from pc_helper.core.logging_config import get_logger
 from pc_helper.models.conversation_models import ConversationState, Message, SourceRef, SystemSpecs
 from pc_helper.services.conversation_store import _safe_id
 from pc_helper.services.llm_service import LLMError
 
+from .access import install_access_check, is_local
 from .categories import resolve_category
 
 logger = get_logger(__name__)
@@ -229,6 +232,12 @@ def _last_specs(ctx: AppContext) -> Optional[SystemSpecs]:
     return None
 
 
+def _share_urls() -> List[str]:
+    """Links for other devices on the network (set by the launcher in network mode)."""
+    raw = os.getenv("PC_SAHAYAK_SHARE_URLS", "")
+    return [u.strip() for u in raw.split(",") if u.strip()]
+
+
 def _kb_info(ctx: AppContext) -> dict:
     manifest = ctx.index.manifest
     return {
@@ -242,13 +251,15 @@ def _kb_info(ctx: AppContext) -> dict:
 # --------------------------------------------------------------------------- #
 # App
 # --------------------------------------------------------------------------- #
-def create_app(context: Optional[AppContext] = None) -> FastAPI:
+def create_app(context: Optional[AppContext] = None, access_code: Optional[str] = None) -> FastAPI:
+    """``access_code`` (or PC_SAHAYAK_ACCESS_CODE) turns on the local-network access check."""
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.ctx = context or AppContext()
         yield
 
-    app = FastAPI(title="PC Helper API", lifespan=lifespan)
+    app = FastAPI(title="PC-Sahayak API", version=__version__, lifespan=lifespan)
+    install_access_check(app, access_code if access_code is not None else os.getenv("PC_SAHAYAK_ACCESS_CODE"))
 
     def ctx_of(request: Request) -> AppContext:
         return request.app.state.ctx
@@ -276,6 +287,9 @@ def create_app(context: Optional[AppContext] = None) -> FastAPI:
             },
             "kb": _kb_info(ctx),
             "last_specs": last.model_dump() if last else None,
+            "version": __version__,
+            # Share links for other devices, shown only to the computer running PC-Sahayak.
+            "share_urls": _share_urls() if is_local(request) else [],
         }
 
     @app.get("/api/conversations", response_model=List[SummaryOut])

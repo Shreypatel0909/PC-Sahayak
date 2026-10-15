@@ -30,3 +30,6 @@ Thumbs.db
 web/node_modules/
 web/dist/
 *.tsbuildinfo
+
+# Launcher bookkeeping (what it installed, shortcut location)
+.sahayak/

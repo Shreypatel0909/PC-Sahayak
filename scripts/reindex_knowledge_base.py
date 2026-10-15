@@ -15,7 +15,7 @@ import sys
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Rebuild the PC Helper knowledge-base index.")
+    parser = argparse.ArgumentParser(description="Rebuild the PC-Sahayak knowledge-base index.")
     parser.add_argument("--kb-dir", help="Override the knowledge-base directory for this run.")
     args = parser.parse_args()
 

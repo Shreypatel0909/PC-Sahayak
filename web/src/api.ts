@@ -7,7 +7,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(path, init);
   } catch {
-    throw new ApiError("Can't reach the PC Helper server. Check that it's running, then try again.");
+    throw new ApiError("Can't reach the PC-Sahayak server. Check that it's running, then try again.");
   }
   if (!res.ok) {
     let detail = `The server returned an error (${res.status}).`;

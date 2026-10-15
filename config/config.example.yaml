@@ -1,5 +1,5 @@
 # ============================================================================
-# PC Helper & Troubleshooting — application configuration (NON-SECRET).
+# PC-Sahayak — application configuration (NON-SECRET).
 #
 # Copy this file to config/config.yaml to customise it, or edit it in place.
 # The app loads config/config.yaml if present, otherwise this example file.
@@ -9,7 +9,7 @@
 # ============================================================================
 
 project:
-  name: "PC Helper & Troubleshooting"
+  name: "PC-Sahayak"
   description: "Conversational AI assistant for Windows PC support and troubleshooting"
 
 llm:

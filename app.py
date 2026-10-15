@@ -1,4 +1,4 @@
-"""PC Helper & Troubleshooting — Streamlit app.
+"""PC-Sahayak — Streamlit app.
 
 Built on top of the original "PC Sahayak" Streamlit + Groq prototype, adding a
 real Retrieval-Augmented Generation (RAG) pipeline over a Markdown knowledge
@@ -71,7 +71,7 @@ ANIM_USER = '<span class="anim-user"></span>'
 ANIM_BOT = '<span class="anim-bot"></span>'
 TYPING_HTML = (
     '<div class="typing" role="status" aria-live="polite">'
-    "<span></span><span></span><span></span><em>PC Helper is thinking…</em></div>"
+    "<span></span><span></span><span></span><em>PC-Sahayak is thinking…</em></div>"
 )
 
 st.markdown(
@@ -251,7 +251,7 @@ def default_specs() -> Optional[SystemSpecs]:
 def render_sidebar() -> None:
     state: ConversationState = st.session_state.state
     with st.sidebar:
-        st.title("💻 PC Helper")
+        st.title("💻 PC-Sahayak")
         st.caption("Your Windows troubleshooting companion")
         st.button("＋ New chat", key="new_chat", on_click=new_chat, type="primary", width="stretch")
 
@@ -430,7 +430,7 @@ def process_turn(turn: dict) -> None:
         if image_bytes:
             st.image(image_bytes, width=360)
 
-    # …PC Helper "thinks", then its reply eases in word by word.
+    # …PC-Sahayak "thinks", then its reply eases in word by word.
     col, _ = st.columns([4, 1], gap="medium")
     with col, st.chat_message("assistant"):
         st.markdown(ANIM_BOT, unsafe_allow_html=True)
@@ -464,7 +464,7 @@ def render_chat() -> None:
     state: ConversationState = st.session_state.state
 
     chat = st.chat_input(
-        "Message PC Helper…",
+        "Message PC-Sahayak…",
         key="chat_input",
         max_chars=5000,
         accept_file=True,

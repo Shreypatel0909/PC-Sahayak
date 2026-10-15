@@ -26,6 +26,7 @@ export function Settings({ meta, prefs, chatCount, anchor, onPrefs, onReindex, o
   const [rebuilding, setRebuilding] = useState(false);
   const [confirmAll, setConfirmAll] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     panel.current?.querySelector<HTMLInputElement>('input:checked')?.focus();
@@ -44,6 +45,15 @@ export function Settings({ meta, prefs, chatCount, anchor, onPrefs, onReindex, o
     try { await onReindex(); } finally { setRebuilding(false); }
   }
 
+  async function copy(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(url);
+    } catch {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
   async function deleteAll() {
     setDeleting(true);
     try { await onDeleteAll(); } finally { setDeleting(false); setConfirmAll(false); }
@@ -52,6 +62,19 @@ export function Settings({ meta, prefs, chatCount, anchor, onPrefs, onReindex, o
   return (
     <section className="settings" id="settings" role="dialog" aria-label="Settings" ref={panel}>
       <h2>Settings</h2>
+
+      {meta.share_urls.length > 0 && (
+        <div className="set">
+          <span className="eyebrow">Shared on your network</span>
+          <small>Open one of these links on a phone or another PC on the same Wi-Fi. Anyone with the link can use PC-Sahayak and see its chats.</small>
+          {meta.share_urls.map(url => (
+            <div className="share-row" key={url}>
+              <code>{url}</code>
+              <button className="ghost" type="button" onClick={() => copy(url)}>{copied === url ? 'Copied' : 'Copy'}</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="set">
         <span className="eyebrow">Theme</span>
@@ -115,6 +138,7 @@ export function Settings({ meta, prefs, chatCount, anchor, onPrefs, onReindex, o
           </div>
         )}
       </div>
+      <small className="version">PC-Sahayak version {meta.version}</small>
     </section>
   );
 }

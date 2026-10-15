@@ -1,6 +1,8 @@
-# PC Helper & Troubleshooting
+# PC-Sahayak
 
-An all-Python, AI-powered web app that helps users diagnose and fix common
+Windows PC troubleshooting assistant.
+
+An AI-powered web app (Python core, React + TypeScript UI) that helps users diagnose and fix common
 Windows PC problems through a step-by-step conversation. It uses the **Groq** LLM
 for reasoning and **Retrieval-Augmented Generation (RAG)** over a configurable
 Markdown knowledge base, so its advice is grounded in real documentation and can
@@ -33,7 +35,7 @@ grounded in a documented knowledge base.
 
 ## 3. What was improved over the prototype
 
-| Area | Prototype (PC Sahayak) | PC Helper (this project) |
+| Area | Original prototype | PC-Sahayak v1.x (this project) |
 |---|---|---|
 | UI | Streamlit chat, category picker, suggestions, screenshot upload | **Intake form** replaces the category picker (system specs + issue + screenshot), animated replies, citations, follow-up chips, progress panel |
 | LLM | Groq (text + vision) | **Kept** behind an adapter; models configurable; JSON mode for reliable structured replies |
@@ -131,6 +133,29 @@ copy .env.example .env                           # then set GROQ_API_KEY
 
 ## 7. Running the app
 
+### Quick start on Windows (double-click)
+
+Double-click **`Start PC-Sahayak.bat`** in the program folder. It checks for
+everything PC-Sahayak needs and asks before installing anything that's missing:
+Python 3.11–3.13, the Python packages (in a private `.venv`), Node.js (only to
+build the interface once), and your Groq API key. Then it starts PC-Sahayak and
+opens it in your browser. Keep its window open while you use the app; closing
+the window stops it. On first run it offers to create a desktop shortcut.
+
+**Use it from other devices on your network.** Double-click
+**`Start PC-Sahayak (network).bat`** instead. After you confirm, it prints a
+share link such as `http://192.168.1.20:8000/?access=ABCD2345` (also shown in
+Settings with a copy button). Open that link on a phone or another PC on the
+same Wi-Fi. Devices without the link are blocked; this computer never needs it.
+Everyone shares the same chat history and your Groq API key, so share only on
+networks you trust. If a device can't connect, set the network to *Private* in
+Windows Settings › Network & internet and allow the firewall rule it offers.
+
+To remove it, double-click **`Uninstall PC-Sahayak.bat`**. It deletes the
+`.venv`, the built interface, the search index and the shortcut, then asks
+separately whether to delete your saved chats, your API key, any Python or
+Node.js it installed, and the program folder itself.
+
 There are two UIs over the same Python core and the same saved chats.
 
 ### React UI (new)
@@ -181,7 +206,7 @@ the app ingests the knowledge base and builds the index (reused afterwards).
    is pre-filled from your last chat.
 2. **Main chat.** The specs go into the structured state and every prompt, with an
    explicit rule that the assistant must not ask for them again. Your message
-   slides in, a typing indicator shows while PC Helper thinks, and the reply eases
+   slides in, a typing indicator shows while PC-Sahayak thinks, and the reply eases
    in word by word, followed by its sources and tap-to-answer suggestion chips.
 3. **History.** Every chat is saved on this computer (`data/conversations/`, with
    screenshots in `data/uploads/`). The sidebar lists past chats newest-first;

@@ -31,13 +31,13 @@ from .vector_store import RetrievedChunk
 logger = get_logger(__name__)
 
 WELCOME_MESSAGE = (
-    "Hi! I'm PC Helper, your Windows troubleshooting assistant.\n\n"
+    "Hi! I'm PC-Sahayak, your Windows troubleshooting assistant.\n\n"
     "Fill in a few details about your PC below, describe the problem, and attach a "
     "screenshot if you have one. I'll use that to guide you through safe fixes one "
     "step at a time — without asking you the same questions twice."
 )
 
-_BEHAVIOUR = """You are "PC Helper", a careful, friendly Windows PC-troubleshooting assistant. \
+_BEHAVIOUR = """You are "PC-Sahayak", a careful, friendly Windows PC-troubleshooting assistant. \
 You guide users through diagnosing and fixing common computer problems ONE STEP AT A TIME.
 
 HOW TO BEHAVE

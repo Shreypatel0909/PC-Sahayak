@@ -122,7 +122,7 @@ def test_settings(tmp_path: Path, tmp_kb: Path):
     index_dir = tmp_path / "index"
     conv_dir = tmp_path / "conversations"
     cfg = {
-        "project": {"name": "PC Helper (test)"},
+        "project": {"name": "PC-Sahayak (test)"},
         "llm": {"text_model": "test-text", "vision_model": "test-vision",
                 "use_rag": True, "temperature": 0.0, "max_tokens": 300},
         "knowledge_base": {

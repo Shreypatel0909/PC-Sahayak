@@ -82,7 +82,7 @@ export function Thread({ messages, pending, freshFrom, revealIdx, locked, onChip
       {pending && (
         <article className="msg-bot new">
           <Avatar />
-          <div className="typing" role="status"><i /><i /><i /><em>PC Helper is thinking…</em></div>
+          <div className="typing" role="status"><i /><i /><i /><em>PC-Sahayak is thinking…</em></div>
         </article>
       )}
     </div>

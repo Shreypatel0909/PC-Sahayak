@@ -101,7 +101,7 @@ export function App() {
   }, [shown?.category]);
 
   const title = startTitle ?? shown?.title ?? (activeId ? 'Loading…' : 'New problem');
-  useEffect(() => { document.title = `${title} · PC Helper`; }, [title]);
+  useEffect(() => { document.title = `${title} · PC-Sahayak`; }, [title]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawer(false); };
@@ -265,7 +265,7 @@ export function App() {
               <p style={{ margin: 0, fontSize: 14 }}>Start it from the pc-helper folder with <code>uvicorn api.main:app --port 8000</code>.</p>
               <button className="ghost" type="button" onClick={() => setBootTry(n => n + 1)}>Try again</button>
             </div>
-          ) : <span>Loading PC Helper…</span>}
+          ) : <span>Loading PC-Sahayak…</span>}
         </div>
       </div>
     );
@@ -276,7 +276,7 @@ export function App() {
   const busy = !!pending;
   const placeholder = shown?.route.fixed
     ? 'Anything else about this problem?'
-    : shown?.route.current ? 'Tell me what happened, or ask a question' : 'Message PC Helper';
+    : shown?.route.current ? 'Tell me what happened, or ask a question' : 'Message PC-Sahayak';
 
   return (
     <div className="app">
@@ -285,7 +285,7 @@ export function App() {
           aria-label="Show past problems" aria-controls="routes" aria-expanded={drawer}>
           <Menu />
         </button>
-        <div className="brand"><Logo />PC Helper</div>
+        <div className="brand"><Logo />PC-Sahayak</div>
         <button className="iconbtn" type="button" onClick={() => update({ theme: isDark ? 'light' : 'dark' })}
           aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}>
           {isDark ? <Moon /> : <Sun />}

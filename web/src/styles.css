@@ -1,4 +1,4 @@
-/* PC Helper: past problems | conversation | live fix route.
+/* PC-Sahayak: past problems | conversation | live fix route.
    The route line takes its colour from the problem type the AI assigns. */
 @property --line { syntax: "<color>"; inherits: true; initial-value: #6B7A99; }
 
@@ -132,6 +132,10 @@ kbd { font: 500 .8em var(--f-mono); border: 1px solid var(--hair); border-bottom
 .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--hair); border-top-color: var(--ink); animation: rot .8s linear infinite; }
 .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--l-security); }
 .status-dot.off { background: var(--caution); }
+
+.share-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.share-row code { flex: 1; min-width: 0; font-size: 12.5px; padding: 6px 8px; }
+.settings .version { color: var(--muted); font-size: 12.5px; text-align: center; }
 
 /* ---------- panes ---------- */
 .panes { min-height: 0; display: grid; gap: 12px; grid-template-columns: 260px minmax(0, 1fr) 300px; }
