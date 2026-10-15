@@ -1,67 +1,91 @@
 # PC-Sahayak
 
-Windows PC troubleshooting assistant.
+Windows PC troubleshooting assistant. **Version 1.3.1** (see [CHANGELOG.md](CHANGELOG.md)).
 
-An AI-powered web app (Python core, React + TypeScript UI) that helps users diagnose and fix common
-Windows PC problems through a step-by-step conversation. It uses the **Groq** LLM
-for reasoning and **Retrieval-Augmented Generation (RAG)** over a configurable
-Markdown knowledge base, so its advice is grounded in real documentation and can
-cite its sources. It also accepts **screenshots** (vision model) for visual
-troubleshooting.
+PC-Sahayak helps people diagnose and fix common Windows PC problems through a
+step-by-step conversation. It uses the **Groq** LLM for reasoning and
+**Retrieval-Augmented Generation (RAG)** over a Markdown knowledge base, so its
+advice is grounded in real documentation and cites its sources. It also reads
+**screenshots** of error messages.
+
+- Python core (RAG, Groq, conversation state) with a **React + TypeScript**
+  interface served by a small **FastAPI** server.
+- One double-click to start on Windows; it checks requirements and asks before
+  installing anything.
+- Can be shared with phones and other PCs on your **local network** through a
+  protected share link.
 
 > University project. Built **on top of the original "PC Sahayak" Streamlit +
-> Groq prototype** (`github.com/Shreypatel0909/PC-Sahayak`), preserving its
-> working UI and Groq integration and adding a real RAG pipeline, source
-> citations, structured conversation state, and automated tests.
+> Groq prototype** (`github.com/Shreypatel0909/PC-Sahayak`), keeping its Groq
+> integration and adding a real RAG pipeline, source citations, structured
+> conversation state, a new interface, and automated tests.
+
+---
+
+## Quick start (Windows)
+
+1. Download **`PC-Sahayak-v1.3.1-windows.zip`** from the
+   [Releases page](https://github.com/Shreypatel0909/PC-Sahayak/releases) and
+   unzip it anywhere (or clone this repository).
+2. Double-click **`Start PC-Sahayak.bat`**.
+3. Answer its questions. It checks for Python 3.11–3.13 and the Python
+   packages, and asks for a free Groq API key from https://console.groq.com/keys.
+
+PC-Sahayak opens in your browser. To stop it, click the **power button** at the
+top right of the app (or close the launcher window).
 
 ---
 
 ## 1. Problem statement
 
-Generic chatbots tend to answer PC problems with a wall of unrelated steps. PC
-Helper instead behaves like a patient technician: it understands the problem,
-asks focused follow-up questions, and recommends **one safe action at a time**,
-grounded in a documented knowledge base.
+Generic chatbots tend to answer PC problems with a wall of unrelated steps.
+PC-Sahayak instead behaves like a patient technician: it understands the
+problem, asks focused follow-up questions, and recommends **one safe action at
+a time**, grounded in a documented knowledge base.
 
 ## 2. Objectives
 
-- A clean chat interface with structured, step-by-step troubleshooting.
+- A clear chat interface with structured, step-by-step troubleshooting.
 - An LLM backend (Groq) behind a small adapter.
 - A real RAG pipeline: ingestion → chunking → embeddings → persistent vector index → retrieval.
 - Multi-turn conversation with explicit, structured, persisted state.
-- Follow-up questions with clickable suggested answers.
+- Follow-up questions with tap-to-answer suggestions.
 - Honest source attribution; safe, risk-aware guidance.
-- Screenshot (vision) support, configurable knowledge-base path, tests, and docs.
+- Screenshot (vision) support, configurable knowledge base, tests, and docs.
 
 ## 3. What was improved over the prototype
 
-| Area | Original prototype | PC-Sahayak v1.x (this project) |
+| Area | Original prototype | PC-Sahayak 1.3 |
 |---|---|---|
-| UI | Streamlit chat, category picker, suggestions, screenshot upload | **Intake form** replaces the category picker (system specs + issue + screenshot), animated replies, citations, follow-up chips, progress panel |
-| LLM | Groq (text + vision) | **Kept** behind an adapter; models configurable; JSON mode for reliable structured replies |
+| Interface | Streamlit chat, category picker | **React + TypeScript** app: intake form for PC specs, colour-coded "fix route" of steps, step cards, caution boxes, answer chips, light/dark themes. The Streamlit UI is kept as an alternative. |
+| LLM | Groq (text + vision) | **Kept** behind an adapter; JSON mode for reliable structured replies; detailed, beginner-friendly answers |
 | Grounding | None (model knowledge only) | **RAG** over a 16-file Markdown knowledge base |
-| Citations | None | Sources actually retrieved/used are shown |
-| State | `session_state` list | Validated `ConversationState` incl. the system profile — specs are never re-asked |
-| History | Lost on refresh | **Saved locally**, listed in the sidebar, resumable (also via `?chat=<id>` in the URL), deletable |
-| Config | Hard-coded | YAML + `.env`/secrets; configurable KB path |
-| Tests | None | **20 pytest tests** (mocked LLM) |
+| Citations | None | Guides actually used are shown under each reply |
+| Conversation | Free-form | Validated state: specs never re-asked, off-topic questions politely refused, a closing summary when the problem is solved (then the chat locks) |
+| History | Lost on refresh | **Saved locally**, resumable by link, deletable (one or all) |
+| Running it | `streamlit run` | **Double-click launcher** with requirement checks, desktop shortcut, uninstaller, power button |
+| Sharing | None | **Local-network mode** with an access-code share link |
+| Config | Hard-coded | YAML + `.env`; configurable knowledge-base path |
+| Tests | None | **63 pytest tests** (mocked LLM) |
 | Safety | Good system prompt | Prompt + prompt-injection defence + explicit refusals |
 
 ## 4. System architecture
 
-All-Python. Streamlit is the UI layer (the prototype's framework); the domain
-logic lives in the `pc_helper` package and is framework-agnostic.
+The troubleshooting logic lives in the framework-agnostic `pc_helper` package.
+Two interfaces sit on top of it and share the same saved chats: the React app
+(through the FastAPI server in `api/`) and the original Streamlit app.
 
 ```mermaid
 flowchart TD
-    UI["Streamlit UI (app.py)"] --> ENG["Troubleshooting engine"]
+    WEB["React + TypeScript UI (web/)"] -->|HTTP /api| API["FastAPI server (api/)"]
+    ST["Streamlit UI (app.py)"] --> ENG
+    API --> ENG["Troubleshooting engine"]
     ENG --> RET["Retriever"]
     RET --> IDX[("Vector index<br/>vectors.npy + manifest")]
     ENG --> LLM["Groq adapter (text + vision)"]
     LLM -->|API call| GROQ(("Groq"))
     ENG --> STORE[("Conversation store<br/>JSON per conversation")]
     KB["knowledge_base/*.md"] -->|ingest: chunk + embed| IDX
-    ENG -->|reply + sources + follow-up| UI
 ```
 
 ### RAG workflow
@@ -78,155 +102,179 @@ flowchart LR
     PARSE --> R["Reply + sources + follow-up + state update"]
 ```
 
-- **Ingestion** (`services/ingestion_service.py`): reads Markdown, heading-aware overlapping chunks, keeps metadata (file, heading, index).
+- **Ingestion** (`services/ingestion_service.py`): reads Markdown into heading-aware overlapping chunks, keeping metadata (file, heading, index).
 - **Embeddings** (`services/embeddings.py`): text → vectors (see §12).
-- **Vector store** (`services/vector_store.py`): persistent numpy cosine index + a manifest recording embedder, source directory, and config.
-- **Retrieval** (`services/retrieval_service.py`): rewrites the message into a query using known facts/context, embeds it, returns top matches.
-- **Engine** (`services/troubleshooting_service.py`): builds the prompt, calls Groq, parses a structured reply, updates state; a separate vision path for screenshots.
-- **Citations**: only chunks actually retrieved **and** marked used are cited — never fabricated.
+- **Vector store** (`services/vector_store.py`): persistent numpy cosine index plus a manifest recording the embedder, source directory and config.
+- **Retrieval** (`services/retrieval_service.py`): turns the message into a query using known facts, embeds it, returns the top matches.
+- **Engine** (`services/troubleshooting_service.py`): builds the prompt, calls Groq, parses the structured reply, updates state; a separate vision path for screenshots.
+- **Citations**: only chunks actually retrieved **and** marked as used are cited, never fabricated.
 
-### Conversational state machine
+### Conversation states
 
 ```mermaid
 stateDiagram-v2
     [*] --> diagnosing
     diagnosing --> needs_info: critical info missing
     needs_info --> diagnosing: user answers
-    diagnosing --> diagnosing: next safe step
-    diagnosing --> resolved: user confirms fixed
-    resolved --> [*]
+    diagnosing --> diagnosing: next safe step (route gains a stop)
+    diagnosing --> diagnosing: off-topic question (polite refusal, state unchanged)
+    diagnosing --> resolved: user confirms the fix
+    resolved --> locked: closing summary of every step
+    locked --> diagnosing: user unlocks to continue
 ```
 
 ## 5. Technologies used (and why)
 
 | Component | Choice | Reason |
 |---|---|---|
-| Language | Python 3.11–3.13 | Required; all-Python project. |
-| UI / app | **Streamlit** | The prototype's framework — retained per the brief; pure Python, great for a demo. |
+| Core language | Python 3.11–3.13 | Required by the brief; RAG and Groq SDK. |
+| Interface | **React 18 + TypeScript**, built with **Vite** (Node.js) | A distinctive, responsive UI with typed API calls; built once into static files. |
+| HTTP API | **FastAPI** + Uvicorn | Thin layer over the Python core; also serves the built UI. |
+| Original UI | Streamlit | The prototype's framework, kept as an alternative. |
 | LLM | **Groq** (`groq` SDK) | The prototype's provider; free tier; text + vision models. |
-| Embeddings | Local; `sentence-transformers` (optional) with a built-in lexical fallback | Free, offline; app runs with zero heavy deps. |
-| Vector store | numpy cosine index + JSON manifest | No native builds (FAISS is awkward on Windows); transparent; adequate for a small KB; isolated behind one module. |
-| Config | YAML (non-secret) + `.env`/`st.secrets` (key) | Keeps the key out of code and VCS. |
+| Embeddings | `sentence-transformers` (optional) with a built-in lexical fallback | Free, offline; runs with zero heavy dependencies. |
+| Vector store | numpy cosine index + JSON manifest | No native builds (FAISS is awkward on Windows); transparent; enough for a small knowledge base. |
+| Launcher | Windows batch + PowerShell | Double-click start, requirement checks, uninstall; uses `winget` to install Python/Node.js when asked. |
+| Config | YAML (non-secret) + `.env` (API key) | Keeps the key out of code and version control. |
 | Tests | pytest | Mocked LLM, no API credits used. |
 
-## 6. Installation & setup
+## 6. Installation
 
-Requires Python 3.11–3.13. From the `pc-helper/` folder:
+**Recommended:** use the launcher (see Quick start). It creates a private
+`.venv`, installs the packages, builds the interface if needed, and stores your
+Groq API key in `.env`, asking before each step.
+
+**Manual setup** (any OS), from the project folder:
 
 ```powershell
-# 1. Virtual environment
+# 1. Python environment and packages
 python -m venv .venv
-.\.venv\Scripts\activate          # Windows PowerShell
+.\.venv\Scripts\activate             # Windows PowerShell
 # source .venv/bin/activate          # macOS / Linux
-
-# 2. Install core dependencies (light, fast)
 pip install -r requirements.txt
 
-# 3. (Optional) better semantic retrieval — larger download (PyTorch)
+# 2. (Optional) better semantic retrieval; larger download (PyTorch)
 pip install -r requirements-ml.txt
 
-# 4. Provide your Groq API key (choose ONE):
-copy .env.example .env                           # then set GROQ_API_KEY
-#   or: copy .streamlit\secrets.toml.example .streamlit\secrets.toml  # then set GROQ_API_KEY
-#   free key: https://console.groq.com/keys
-```
+# 3. Groq API key (free: https://console.groq.com/keys)
+copy .env.example .env               # then set GROQ_API_KEY
 
-## 7. Running the app
-
-### Quick start on Windows (double-click)
-
-Double-click **`Start PC-Sahayak.bat`** in the program folder. It checks for
-everything PC-Sahayak needs and asks before installing anything that's missing:
-Python 3.11–3.13, the Python packages (in a private `.venv`), Node.js (only to
-build the interface once), and your Groq API key. Then it starts PC-Sahayak and
-opens it in your browser. Keep its window open while you use the app; closing
-the window stops it. On first run it offers to create a desktop shortcut.
-
-**Use it from other devices on your network.** Double-click
-**`Start PC-Sahayak (network).bat`** instead. After you confirm, it prints a
-share link such as `http://192.168.1.20:8000/?access=ABCD2345` (also shown in
-Settings with a copy button). Open that link on a phone or another PC on the
-same Wi-Fi. Devices without the link are blocked; this computer never needs it.
-Everyone shares the same chat history and your Groq API key, so share only on
-networks you trust. If a device can't connect, set the network to *Private* in
-Windows Settings › Network & internet and allow the firewall rule it offers.
-
-To remove it, double-click **`Uninstall PC-Sahayak.bat`**. It deletes the
-`.venv`, the built interface, the search index and the shortcut, then asks
-separately whether to delete your saved chats, your API key, any Python or
-Node.js it installed, and the program folder itself.
-
-There are two UIs over the same Python core and the same saved chats.
-
-### React UI (new)
-
-The `web/` folder is a React + TypeScript app (built with Vite on Node.js). It
-talks to a small FastAPI server in `api/`, which calls the unchanged `pc_helper`
-engine (Groq, RAG, conversation store). Requires Node.js 18 or later.
-
-```powershell
-# one-time: install the UI's packages and build it
+# 4. Build the interface once (Node.js 18 or later). Release zips already include it.
 cd web
 npm install
 npm run build
 cd ..
-
-# run: the API also serves the built UI
-uvicorn api.main:app --port 8000
 ```
 
-Open http://localhost:8000. Each problem gets a "fix route" whose colour comes
-from the problem type the assistant assigns (network, hardware, software,
-startup, performance, security, general). Every step you try becomes a stop on
-the route.
+## 7. Running the app
 
-For UI development with hot reload, run the API and the Vite dev server in two
-terminals, then open http://localhost:5173 (Vite forwards `/api` to port 8000):
+### Windows launcher
+
+| File | What it does |
+|---|---|
+| `Start PC-Sahayak.bat` | Checks requirements, then starts PC-Sahayak for this computer and opens the browser. Offers a desktop shortcut on first run. |
+| `Start PC-Sahayak (network).bat` | Same, but also lets phones and other PCs on your network use it (see below). |
+| `Uninstall PC-Sahayak.bat` | Removes what the launcher set up (see below). |
+
+If PC-Sahayak is already running, the launcher opens it instead of starting a
+second copy. If the running copy is from before an update, or is running for
+this computer only when you asked for network mode, it offers to restart it.
+
+### Closing PC-Sahayak
+
+Click the **power button** at the top right of the app and confirm. The server
+stops, the launcher window closes itself, and the page shows "PC-Sahayak is
+closed". Your chats stay saved. Closing the launcher window or pressing
+`Ctrl+C` in it also stops PC-Sahayak. Only the computer running PC-Sahayak
+sees the power button; devices using the network link cannot close it.
+
+### Using it on your local network
+
+1. Double-click **`Start PC-Sahayak (network).bat`** and confirm sharing.
+2. If Windows has your Wi-Fi set to **Public**, the launcher explains this and
+   offers to set it to **Private** and allow PC-Sahayak through the firewall
+   (one administrator prompt). Do this only for a network you trust, such as
+   your home Wi-Fi. Without it, other devices usually cannot connect.
+3. The launcher shows a share link such as
+   `http://192.168.1.20:8000/?access=K4TQ9ZWM2P`. It is also in the app under
+   **Settings**, with a Copy button.
+4. Open the link on a phone or another PC on the same network.
+
+Devices without the link see an "access link needed" page and cannot reach any
+data. The link is remembered on each device, and stays the same between runs.
+Everyone using it shares the same chat history and your Groq API key.
+
+### Uninstalling
+
+`Uninstall PC-Sahayak.bat` stops PC-Sahayak and removes the `.venv`, the built
+interface, the search index, the desktop shortcut and the access code. It then
+asks separately whether to remove your saved chats, your API key, the firewall
+rule, the Private network setting, any Python or Node.js the launcher installed,
+and finally the program folder itself (you must type `DELETE`).
+
+### Manual start
+
+```powershell
+uvicorn api.main:app --port 8000                 # this computer only
+```
+
+Open http://localhost:8000. For interface development with hot reload, run the
+API and the Vite dev server in two terminals, then open http://localhost:5173
+(Vite forwards `/api` to port 8000):
 
 ```powershell
 uvicorn api.main:app --reload --port 8000
 cd web; npm run dev
 ```
 
-### Streamlit UI (original)
+The original Streamlit interface still works over the same core and chats:
 
 ```powershell
-streamlit run app.py
+streamlit run app.py                             # http://localhost:8501
 ```
-
-Streamlit opens it in your browser (default http://localhost:8501). On first run
-the app ingests the knowledge base and builds the index (reused afterwards).
 
 ### How a chat works
 
-1. **Intake form.** Each new chat starts with a short form: device type, OS and
-   version, RAM size and type, storage size and type, a description of the issue,
-   and an optional screenshot. "Don't know" is always allowed, and a "Not sure
-   where to find these?" section explains where Windows shows each value. The form
-   is pre-filled from your last chat.
-2. **Main chat.** The specs go into the structured state and every prompt, with an
-   explicit rule that the assistant must not ask for them again. Your message
-   slides in, a typing indicator shows while PC-Sahayak thinks, and the reply eases
-   in word by word, followed by its sources and tap-to-answer suggestion chips.
-3. **History.** Every chat is saved on this computer (`data/conversations/`, with
-   screenshots in `data/uploads/`). The sidebar lists past chats newest-first;
-   click one to resume it, or 🗑 to delete it. The URL carries `?chat=<id>`, so a
-   page refresh reopens the same conversation.
+1. **Describe the problem.** A short form asks for the device, Windows version,
+   RAM and storage ("Don't know" is always fine, and "Not sure where to find
+   these?" explains where Windows shows each value), plus the problem and an
+   optional screenshot. It is pre-filled from your last problem.
+2. **Step by step.** Each reply explains what PC-Sahayak understands, what the
+   evidence suggests, one next step broken into detailed sub-steps, the
+   expected result, and a question with tap-to-answer chips. Risky actions get
+   a caution box. The guides used are listed under the reply.
+3. **The fix route.** The panel on the right shows each step as a stop on a
+   route, coloured by the problem type the assistant assigns (network,
+   hardware, software, startup, performance, security, general). On a phone it
+   becomes a strip at the top.
+4. **Off-topic questions** get a short, polite refusal and leave the diagnosis
+   untouched.
+5. **Solved.** When you say it worked (or tap **✓ This solved it**), PC-Sahayak
+   writes a summary of everything you did, why it worked and how to prevent it,
+   then locks the chat. **Unlock chat** reopens it if the problem comes back.
+6. **History.** Chats are saved on this computer (`data/conversations/`,
+   screenshots in `data/uploads/`), listed on the left, and can be deleted one
+   by one or all at once in Settings. The address bar carries `#<chat id>`, so
+   a refresh or bookmark reopens the same chat.
 
 ## 8. Configuration
 
-- **Secret:** `GROQ_API_KEY` in `.env` or `.streamlit/secrets.toml` (both git-ignored).
+- **Secret:** `GROQ_API_KEY` in `.env` (or `.streamlit/secrets.toml`); both are git-ignored.
 - **Everything else:** `config/config.yaml` (copy from `config/config.example.yaml`;
   if absent, the example is used). Relative paths resolve against the project root.
-- **Models:** `llm.text_model` / `llm.vision_model` in the YAML (Groq model ids).
-- **Pointing at a different knowledge base:** set `knowledge_base.markdown_directory`,
-  then rebuild the index — sidebar **"Rebuild index"** button, or:
+- **Models:** `llm.text_model` / `llm.vision_model` (Groq model ids). `llm.max_tokens`
+  is 4096 because the default model spends part of it on hidden reasoning; lower
+  values give short replies.
+- **Different knowledge base:** set `knowledge_base.markdown_directory`, then
+  rebuild the index (Settings › **Rebuild index**, or):
   ```powershell
   python -m scripts.reindex_knowledge_base
-  python -m scripts.reindex_knowledge_base --kb-dir "D:\PC_Helper\knowledge_base"
+  python -m scripts.reindex_knowledge_base --kb-dir "D:\PC_Sahayak\knowledge_base"
   ```
   The index stores a **manifest**; if it was built from a different directory or
-  embedder, the app rebuilds it rather than silently reusing a mismatched index.
+  embedder, the app rebuilds it rather than reusing a mismatched index.
+- **Network mode** (set by the launcher): `PC_SAHAYAK_ACCESS_CODE` turns on the
+  access check, and `PC_SAHAYAK_SHARE_URLS` lists the links shown in Settings.
 
 ## 9. Running the tests
 
@@ -235,81 +283,106 @@ pip install -r requirements.txt   # includes pytest
 pytest
 ```
 
-Tests use a temporary knowledge base, the lightweight embedder, and a **scripted
-fake LLM**, so they are fast, deterministic, and cost nothing. `tests/test_app.py`
-drives the real Streamlit UI headlessly with `streamlit.testing.AppTest` (intake
-form, validation, resume, chips, new chat, delete). Status: **36 passing**.
+Tests use a temporary knowledge base, the lightweight embedder and a **scripted
+fake LLM**, so they are fast, deterministic and cost nothing. They cover the
+engine, retrieval, ingestion, conversation state, the Streamlit UI
+(`tests/test_app.py`, via `streamlit.testing.AppTest`) and the HTTP API
+(`tests/test_api.py`: chats, screenshots, off-topic handling, solving and
+locking, network access codes, closing). Status: **63 passing**.
 
-## 10. Internal module reference
+## 10. API reference
 
-The brief lists suggested REST endpoints; because the prototype (and this app)
-use Streamlit rather than a separate HTTP server, those responsibilities are
-implemented as service functions the UI calls directly:
+The React interface talks to these endpoints (`api/main.py`):
 
-| Brief endpoint | Here |
-|---|---|
-| `POST /api/chat` | `engine.respond(state, message, image_data_url, category)` |
-| `POST /api/conversations` | `conversation_store.create()` |
-| `GET /api/conversations/{id}` | `conversation_store.get(id)` |
-| (history list / delete) | `conversation_store.list_conversations()` / `.delete(id)` |
-| `POST /api/knowledge-base/reindex` | `ctx.reindex()` / `scripts/reindex_knowledge_base.py` |
-| `GET /api/knowledge-base/status` | `ctx.index.documents` / `.chunks` / `.manifest` |
-| `GET /api/health` | `ctx.llm.is_configured`, `ctx.index.chunks` |
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/meta` | Form options, models, knowledge-base info, last PC specs, version, share links (this PC only) |
+| GET | `/api/conversations` | Saved chats, newest first, with problem type and step count |
+| POST | `/api/conversations` | Start a chat: PC specs + problem text and/or screenshot |
+| GET | `/api/conversations/{id}` | One chat with messages, route and sources |
+| POST | `/api/conversations/{id}/messages` | Send a message and/or screenshot |
+| POST | `/api/conversations/{id}/resolve` | Mark solved: closing summary, then lock |
+| POST | `/api/conversations/{id}/unlock` | Reopen a solved chat |
+| POST | `/api/conversations/{id}/retry` | Retry after an error reply |
+| DELETE | `/api/conversations/{id}` / `/api/conversations` | Delete one chat / all chats |
+| POST | `/api/reindex` | Rebuild the knowledge-base index |
+| GET | `/api/uploads/{id}/{file}` | A saved screenshot |
+| POST | `/api/shutdown` | Close PC-Sahayak (this PC only) |
 
 ## 11. Project structure
 
 ```text
-pc-helper/
-├── app.py                    # Streamlit UI (built on the prototype)
-├── pc_helper/
-│   ├── core/                 # config.py, context.py, logging_config.py
-│   ├── models/               # chat_models.py, conversation_models.py
-│   └── services/             # llm, embeddings, ingestion, vector_store,
-│                             #   retrieval, conversation_store, troubleshooting
-├── knowledge_base/           # 16 Markdown docs (windows/hardware/networking/software/general)
+PC-Sahayak/
+├── Start PC-Sahayak.bat            # double-click launcher (this computer)
+├── Start PC-Sahayak (network).bat  # launcher with local-network sharing
+├── Uninstall PC-Sahayak.bat
+├── launcher/                       # start.ps1, uninstall.ps1, icon
+├── api/                            # FastAPI server: main.py, access.py, categories.py
+├── web/                            # React + TypeScript interface (Vite)
+│   └── src/                        # App.tsx, components/, lib/, styles.css
+├── pc_helper/                      # Python core
+│   ├── core/                       # config, context, logging
+│   ├── models/                     # conversation state, messages
+│   └── services/                   # llm, embeddings, ingestion, vector_store,
+│                                   #   retrieval, conversation_store, troubleshooting
+├── app.py                          # original Streamlit interface
+├── knowledge_base/                 # 16 Markdown guides
 ├── config/config.example.yaml
 ├── scripts/reindex_knowledge_base.py
-├── tests/                    # pytest suite (mocked LLM)
-├── data/                     # index, chat history, screenshots (runtime, git-ignored)
+├── tests/                          # pytest suite (mocked LLM)
+├── data/                           # index, chats, screenshots (created at runtime, git-ignored)
 ├── requirements.txt / requirements-ml.txt
-├── .env.example / .streamlit/secrets.toml.example / .gitignore / pytest.ini
+└── CHANGELOG.md
 ```
 
 ## 12. Embeddings: lightweight default vs. semantic upgrade
 
-Out of the box the app uses a **built-in lexical (hashing) embedder** — zero
-heavy dependencies, so it runs immediately. Its matching is keyword-based, so
+Out of the box the app uses a **built-in lexical (hashing) embedder**: zero
+heavy dependencies, so it runs immediately, but matching is keyword-based and
 retrieval quality is modest. Installing `requirements-ml.txt` enables
 `sentence-transformers` (semantic embeddings); with `embeddings.backend: "auto"`
-(the default) it is used automatically — just rebuild the index. **Recommended
-before a graded demo.**
+(the default) it is used automatically after you rebuild the index.
+**Recommended before a graded demo.**
 
 ## 13. Safety & security
 
-- The Groq API key is read from the environment / Streamlit secrets only, never
-  hard-coded, never logged.
+- The Groq API key is read from `.env` only, never hard-coded, never logged.
 - Retrieved documents and user input are treated as **data, not instructions**
   (prompt-injection defence); they cannot override the system policy.
 - The assistant refuses clearly destructive requests and gates risky actions
-  (registry/BIOS/formatting/resets) behind warnings and backup advice.
-- The app only gives instructions; it never executes commands on the user's machine.
-- `.env`, `.streamlit/secrets.toml`, and `data/` are git-ignored.
+  (registry, BIOS, formatting, resets) behind warnings and backup advice.
+- It only gives instructions; it never runs commands on the user's machine.
+- By default the server listens only on `127.0.0.1` (this computer).
+- In network mode, other devices need the share link's access code; the cookie
+  stores a hash, not the code. Closing the app and seeing share links are
+  limited to the host PC. The firewall rule applies to private networks only.
+- `.env`, `.streamlit/secrets.toml`, `data/` and the launcher's `.sahayak/`
+  folder are git-ignored.
 
-## 14. Limitations
+## 14. Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| A phone can't open the share link | Make sure it's on the same Wi-Fi, and that Windows has the network set to **Private** (Settings › Network & internet › Wi-Fi). Start network mode again and accept the firewall prompt. |
+| "PC-Sahayak is already running" | It opens the running copy. To switch modes, use the power button, then start again. |
+| Replies say no API key was found | Add `GROQ_API_KEY` to `.env` (the launcher can do it), then restart. |
+| Port 8000 is busy | The launcher picks the next free port automatically and shows it. |
+| Something on the page breaks | Use **Reload** on the error screen; if it repeats, close PC-Sahayak and start it again. |
+
+## 15. Limitations
 
 - Default lexical embedder is weaker than the optional semantic one (§12).
-- The word-by-word reveal animates the finished reply; it is not token streaming
-  from the model (the reply arrives as structured JSON, which can't be shown raw).
-- The message animations use the CSS `:has()` selector (current Chrome, Edge,
-  Firefox, Safari); older browsers simply show messages without animation.
-- Single-user, local, file-backed storage — appropriate for a local university project.
+- Replies appear word by word after they arrive; this is not token streaming.
+- One shared chat history per installation: everyone using network mode sees
+  the same chats. Network mode is for trusted local networks, not the internet.
+- The launcher is Windows-only; other systems use the manual steps.
 - Vision quality depends on the configured Groq vision model.
 - Not evaluated with real end users.
 
-## 15. Future enhancements
+## 16. Future enhancements
 
 - Make the semantic embedder the default once environment size allows.
+- Separate chat histories per person in network mode.
 - Incremental re-indexing using the per-file hashes already stored in the manifest.
 - A small labelled RAG-evaluation set (retrieval hit-rate, grounding, citation accuracy).
 - Streaming responses.
-```

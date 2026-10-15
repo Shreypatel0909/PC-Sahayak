@@ -42,9 +42,21 @@ Say 'any programs (Python, Node.js) that the launcher installed.'
 Write-Host ''
 if (-not (Ask 'Continue?')) { Say 'Nothing was changed.'; Start-Sleep -Seconds 2; exit 0 }
 
+# PC-Sahayak server processes from this folder. On Windows the .venv python.exe is a
+# small launcher that starts the real interpreter, so match on the parent too.
+function Get-PcSahayakProcesses {
+    $all = @(Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" -ErrorAction SilentlyContinue)
+    $byId = @{}
+    foreach ($proc in $all) { $byId[[int]$proc.ProcessId] = $proc }
+    $isOurs = { param($path) [bool]($path -and $path.StartsWith($Root, [StringComparison]::OrdinalIgnoreCase)) }
+    return @($all | Where-Object {
+        $parent = $byId[[int]$_.ParentProcessId]
+        $_.CommandLine -match 'api\.main:app' -and ((& $isOurs $_.ExecutablePath) -or ($parent -and (& $isOurs $parent.ExecutablePath)))
+    })
+}
+
 # 1. Stop PC-Sahayak if it is running from this folder.
-$running = Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -and $_.CommandLine -match 'api\.main:app' -and $_.ExecutablePath -and $_.ExecutablePath.StartsWith($Root, [StringComparison]::OrdinalIgnoreCase) }
+$running = Get-PcSahayakProcesses
 foreach ($proc in $running) {
     Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
     Say '  Stopped the running PC-Sahayak server'
@@ -93,6 +105,21 @@ if (Test-Path -LiteralPath $rulesFile) {
             } catch { }
             if (-not ($rules | Where-Object { Get-NetFirewallRule -DisplayName $_ -ErrorAction SilentlyContinue })) { Say '  Removed the firewall rule' }
             else { Say '  The firewall rule was not removed. You can delete it in Windows Defender Firewall > Advanced settings.' Yellow }
+        }
+    }
+}
+
+# 3c. Networks the launcher switched from Public to Private.
+$madePrivate = Join-Path $StateDir 'networks-made-private.txt'
+if (Test-Path -LiteralPath $madePrivate) {
+    $nets = @(Get-Content -LiteralPath $madePrivate | Where-Object { $_ } | Select-Object -Unique)
+    if ($nets.Count) {
+        Write-Host ''
+        $list = ($nets | ForEach-Object { "'" + $_ + "'" }) -join ', '
+        if (Ask "The launcher set $list to Private. Set it back to Public? Windows will ask for administrator permission") {
+            $cmd = ($nets | ForEach-Object { "Set-NetConnectionProfile -Name '" + $_.Replace("'", "''") + "' -NetworkCategory Public -ErrorAction SilentlyContinue" }) -join '; '
+            try { Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @('-NoProfile', '-Command', $cmd) } catch { }
+            Say '  Done. You can check it in Settings > Network & internet.'
         }
     }
 }

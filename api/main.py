@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import base64
 import os
+import threading
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
@@ -232,6 +234,19 @@ def _last_specs(ctx: AppContext) -> Optional[SystemSpecs]:
     return None
 
 
+def _exit_process() -> None:
+    """Stop the server process shortly after the close request has been answered.
+
+    Chats are saved after every turn, so there is nothing left to flush. The
+    launcher window sees the process end and closes itself."""
+    def stop() -> None:
+        time.sleep(0.5)
+        logger.info("Closed from the app.")
+        os._exit(0)
+
+    threading.Thread(target=stop, daemon=True).start()
+
+
 def _share_urls() -> List[str]:
     """Links for other devices on the network (set by the launcher in network mode)."""
     raw = os.getenv("PC_SAHAYAK_SHARE_URLS", "")
@@ -259,6 +274,7 @@ def create_app(context: Optional[AppContext] = None, access_code: Optional[str] 
         yield
 
     app = FastAPI(title="PC-Sahayak API", version=__version__, lifespan=lifespan)
+    app.state.shutdown = _exit_process  # tests replace this
     install_access_check(app, access_code if access_code is not None else os.getenv("PC_SAHAYAK_ACCESS_CODE"))
 
     def ctx_of(request: Request) -> AppContext:
@@ -288,6 +304,8 @@ def create_app(context: Optional[AppContext] = None, access_code: Optional[str] 
             "kb": _kb_info(ctx),
             "last_specs": last.model_dump() if last else None,
             "version": __version__,
+            # Only the computer running PC-Sahayak may close it.
+            "is_host": is_local(request),
             # Share links for other devices, shown only to the computer running PC-Sahayak.
             "share_urls": _share_urls() if is_local(request) else [],
         }
@@ -420,6 +438,14 @@ def create_app(context: Optional[AppContext] = None, access_code: Optional[str] 
             raise HTTPException(409, str(exc))
         return {"documents": stats.documents, "chunks": stats.chunks, "skipped": stats.skipped,
                 "errors": list(stats.errors), "kb": _kb_info(ctx)}
+
+    @app.post("/api/shutdown")
+    def shutdown(request: Request) -> dict:
+        """Close PC-Sahayak (stop the server). Only allowed from this computer."""
+        if not is_local(request):
+            raise HTTPException(403, "Only the computer running PC-Sahayak can close it.")
+        request.app.state.shutdown()
+        return {"closing": True}
 
     @app.get("/api/uploads/{conversation_id}/{filename}")
     def upload_file(conversation_id: str, filename: str, request: Request):

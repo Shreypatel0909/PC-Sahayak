@@ -35,6 +35,12 @@ export const Gear = () => (
   </svg>
 );
 
+export const Power = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" {...base} strokeWidth="2.2" aria-hidden="true">
+    <path d="M12 3v9" /><path d="M6.3 6.8a8 8 0 1 0 11.4 0" />
+  </svg>
+);
+
 export const Plus = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" {...base} strokeWidth="3" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
 );

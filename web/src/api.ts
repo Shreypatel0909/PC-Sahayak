@@ -50,6 +50,7 @@ export const api = {
   remove: (id: string) =>
     request<{ deleted: number }>(`/api/conversations/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   removeAll: () => request<{ deleted: number }>('/api/conversations', { method: 'DELETE' }),
+  shutdown: () => request<{ closing: boolean }>('/api/shutdown', { method: 'POST' }),
   reindex: () =>
     request<{ documents: number; chunks: number; kb: KbInfo }>('/api/reindex', { method: 'POST' }),
 };

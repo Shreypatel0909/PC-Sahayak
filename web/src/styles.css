@@ -137,6 +137,17 @@ kbd { font: 500 .8em var(--f-mono); border: 1px solid var(--hair); border-bottom
 .share-row code { flex: 1; min-width: 0; font-size: 12.5px; padding: 6px 8px; }
 .settings .version { color: var(--muted); font-size: 12.5px; text-align: center; }
 
+.iconbtn.power:hover { color: var(--risk); border-color: color-mix(in oklab, var(--risk) 45%, var(--hair)); }
+.close-confirm { width: min(340px, calc(100vw - 32px)); gap: 12px; }
+.close-confirm p { margin: 0; font-size: 14.5px; color: var(--muted); }
+.close-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.closed-screen { max-width: 420px; text-align: center; display: grid; gap: 10px; justify-items: center; color: var(--ink); }
+.closed-screen svg { width: 48px; height: 48px; }
+.closed-screen h1 { margin: 6px 0 0; font: 900 26px/1.15 var(--f-display); letter-spacing: -.02em; }
+.closed-screen p { margin: 0; color: var(--muted); }
+.closed-screen p.muted { font-size: 14px; }
+.closed-screen b { color: var(--ink); }
+
 /* ---------- panes ---------- */
 .panes { min-height: 0; display: grid; gap: 12px; grid-template-columns: 260px minmax(0, 1fr) 300px; }
 .pane { min-height: 0; min-width: 0; }

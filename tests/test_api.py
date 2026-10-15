@@ -223,4 +223,32 @@ def test_this_computer_never_needs_the_code(context):
 def test_meta_reports_version(client):
     from pc_helper import __version__
 
-    assert client.get("/api/meta").json()["version"] == __version__ == "1.3.0"
+    assert client.get("/api/meta").json()["version"] == __version__ == "1.3.1"
+
+
+# --- closing the app ------------------------------------------------------------
+def test_close_from_this_computer_stops_the_server(context):
+    from api.main import create_app
+
+    app = create_app(context)
+    calls = []
+    app.state.shutdown = lambda: calls.append("stop")
+    with TestClient(app, client=("127.0.0.1", 50000)) as c:
+        assert c.get("/api/meta").json()["is_host"] is True
+        r = c.post("/api/shutdown")
+    assert r.status_code == 200 and r.json() == {"closing": True}
+    assert calls == ["stop"]
+
+
+def test_other_devices_cannot_close_the_app(context):
+    from api.main import create_app
+
+    app = create_app(context, access_code="K7Q2M9")
+    calls = []
+    app.state.shutdown = lambda: calls.append("stop")
+    with TestClient(app) as c:  # host "testclient" = another device
+        c.get("/?access=K7Q2M9", follow_redirects=False)
+        assert c.get("/api/meta").json()["is_host"] is False
+        r = c.post("/api/shutdown")
+    assert r.status_code == 403
+    assert calls == []

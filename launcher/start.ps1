@@ -135,6 +135,46 @@ function Set-GroqKey([string]$Key) {
     Set-Content -LiteralPath $envFile -Value $lines -Encoding ASCII
 }
 
+# Is the PC-Sahayak already running on this port older than the code on disk?
+# (e.g. started before an update) Old servers can break a newer interface.
+function Test-ServerOutdated([int]$P) {
+    $local = ''
+    $init = Select-String -LiteralPath (Join-Path $Root 'pc_helper\__init__.py') -Pattern '__version__\s*=\s*"([^"]+)"' -ErrorAction SilentlyContinue
+    if ($init) { $local = $init.Matches[0].Groups[1].Value }
+    try { $running = [string](Invoke-RestMethod -Uri "http://127.0.0.1:$P/api/meta" -TimeoutSec 3).version } catch { $running = '' }
+    if ($local -and $running -ne $local) { return $true }
+    $owner = Get-NetTCPConnection -LocalPort $P -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess
+    if (-not $owner) { return $false }
+    try { $started = (Get-Process -Id $owner -ErrorAction Stop).StartTime } catch { return $false }
+    $newest = Get-ChildItem -LiteralPath (Join-Path $Root 'api'), (Join-Path $Root 'pc_helper') -Recurse -File -Filter '*.py' -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    return [bool]($newest -and $newest.LastWriteTime -gt $started)
+}
+
+# PC-Sahayak server processes from this folder. On Windows the .venv python.exe is a
+# small launcher that starts the real interpreter, so match on the parent too.
+function Get-PcSahayakProcesses {
+    $all = @(Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" -ErrorAction SilentlyContinue)
+    $byId = @{}
+    foreach ($proc in $all) { $byId[[int]$proc.ProcessId] = $proc }
+    $isOurs = { param($path) [bool]($path -and $path.StartsWith($Root, [StringComparison]::OrdinalIgnoreCase)) }
+    return @($all | Where-Object {
+        $parent = $byId[[int]$_.ParentProcessId]
+        $_.CommandLine -match 'api\.main:app' -and ((& $isOurs $_.ExecutablePath) -or ($parent -and (& $isOurs $parent.ExecutablePath)))
+    })
+}
+
+function Stop-PcSahayakServer {
+    Get-PcSahayakProcesses | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 1
+}
+
+# Is the running copy shared on the network? (share links are only reported to this PC)
+function Test-SharedOnNetwork([int]$P) {
+    try { $urls = (Invoke-RestMethod -Uri "http://127.0.0.1:$P/api/meta" -TimeoutSec 3).share_urls } catch { return $false }
+    return [bool]($urls -and @($urls).Count -gt 0)
+}
+
 # Access code for network mode: kept between runs so share links keep working.
 function Get-AccessCode {
     $file = Join-Path $StateDir 'access-code'
@@ -161,24 +201,58 @@ function Get-LanAddresses {
         ForEach-Object { $_.IPAddress }) | Select-Object -Unique
 }
 
-# Let other devices reach the port: a Windows Firewall rule for private networks only.
-function Confirm-FirewallRule([int]$P) {
-    $name = "PC-Sahayak (TCP $P)"
-    if (Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue) { return }
-    Say "Windows Firewall may block other devices from reaching port $P." Yellow
-    if (-not (Ask 'Add a firewall rule for private networks (home/work Wi-Fi)? Windows will ask for administrator permission')) {
-        Say 'Skipped. If Windows shows a firewall prompt, allow access on Private networks.' Yellow
+# Let other devices reach the port. Windows hides a PC on networks marked Public, so
+# offer to mark a trusted network Private, plus a firewall rule for private networks
+# only. Both happen in one administrator prompt.
+function Confirm-NetworkAccess([int]$P) {
+    $rule = "PC-Sahayak (TCP $P)"
+    $hasRule = [bool](Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue)
+    $public = @(Get-NetConnectionProfile -ErrorAction SilentlyContinue |
+        Where-Object { $_.NetworkCategory -eq 'Public' -and $_.IPv4Connectivity -ne 'Disconnected' })
+    if (-not $public.Count -and $hasRule) { return }
+
+    $commands = @()
+    if ($public.Count) {
+        $names = ($public | ForEach-Object { "'" + $_.Name + "'" }) -join ', '
+        Say "Windows has your network $names set to Public, which stops other devices from connecting to this PC." Yellow
+        Say 'If this is your home or work network, set it to Private.' Yellow
+        if (-not (Ask "Set $names to Private and let PC-Sahayak through the firewall? Windows will ask for administrator permission")) {
+            Say 'OK, the network stays Public, so other devices will probably not be able to connect.' Yellow
+            return
+        }
+        foreach ($n in $public) { $commands += "Set-NetConnectionProfile -InterfaceIndex $($n.InterfaceIndex) -NetworkCategory Private" }
+    } else {
+        Say "Windows Firewall may block other devices from reaching port $P." Yellow
+        if (-not (Ask 'Let PC-Sahayak through the firewall on private networks? Windows will ask for administrator permission')) {
+            Say 'Skipped. If Windows shows a firewall prompt, choose Allow.' Yellow
+            return
+        }
+    }
+    if (-not $hasRule) {
+        $commands += "New-NetFirewallRule -DisplayName '$rule' -Direction Inbound -Protocol TCP -LocalPort $P -Profile Private -Action Allow | Out-Null"
+    }
+    try {
+        Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @('-NoProfile', '-Command', ($commands -join '; '))
+    } catch {
+        Say 'Administrator permission was not given, so nothing was changed.' Yellow
         return
     }
-    $cmd = "New-NetFirewallRule -DisplayName '$name' -Direction Inbound -Protocol TCP -LocalPort $P -Profile Private -Action Allow | Out-Null"
-    try {
-        Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @('-NoProfile', '-Command', $cmd)
-    } catch { }
-    if (Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue) {
-        Add-Content -LiteralPath (Join-Path $StateDir 'firewall-rules.txt') -Value $name
-        Say 'Firewall rule added.' Green
-    } else {
-        Say 'The firewall rule was not added. If Windows shows a firewall prompt, allow access on Private networks.' Yellow
+    foreach ($n in $public) {
+        $now = Get-NetConnectionProfile -InterfaceIndex $n.InterfaceIndex -ErrorAction SilentlyContinue
+        if ($now -and $now.NetworkCategory -eq 'Private') {
+            Add-Content -LiteralPath (Join-Path $StateDir 'networks-made-private.txt') -Value $n.Name
+            Say "Network '$($n.Name)' is now Private." Green
+        } else {
+            Say "Network '$($n.Name)' could not be changed. Set it to Private in Settings > Network & internet > Wi-Fi." Yellow
+        }
+    }
+    if (-not $hasRule) {
+        if (Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue) {
+            Add-Content -LiteralPath (Join-Path $StateDir 'firewall-rules.txt') -Value $rule
+            Say 'Firewall rule added.' Green
+        } else {
+            Say 'The firewall rule was not added. If Windows shows a firewall prompt, choose Allow.' Yellow
+        }
     }
 }
 
@@ -187,14 +261,25 @@ Write-Host ''
 Write-Host '  PC-Sahayak' -ForegroundColor White
 Write-Host '  Windows PC troubleshooting assistant' -ForegroundColor DarkGray
 
-# 0. Already running? Just open it.
+# 0. Already running? Open it, unless it is an outdated copy that should be restarted.
 if (Test-PcSahayak $Port) {
     Say ''
-    Say "PC-Sahayak is already running. Opening http://127.0.0.1:$Port ..." Green
-    if ($Network) { Say 'To switch to network mode, close the PC-Sahayak window first, then start it again.' Yellow }
-    Start-Process "http://127.0.0.1:$Port/"
-    Start-Sleep -Seconds 2
-    exit 0
+    $restart = $false
+    if (Test-ServerOutdated $Port) {
+        Say 'An older copy of PC-Sahayak is still running from before an update.' Yellow
+        $restart = Ask 'Restart it with the current version?'
+    } elseif ($Network -and -not (Test-SharedOnNetwork $Port)) {
+        Say 'PC-Sahayak is already running, but only for this computer.' Yellow
+        $restart = Ask 'Restart it so other devices on your network can use it?'
+    }
+    if ($restart) {
+        Stop-PcSahayakServer
+    } else {
+        Say "PC-Sahayak is already running. Opening http://127.0.0.1:$Port ..." Green
+        Start-Process "http://127.0.0.1:$Port/"
+        Start-Sleep -Seconds 2
+        exit 0
+    }
 }
 
 # 1. Python + packages
@@ -339,7 +424,7 @@ if ($Network) {
             $env:PC_SAHAYAK_ACCESS_CODE = $code
             $env:PC_SAHAYAK_SHARE_URLS = $shareUrls -join ','
             $bindHost = '0.0.0.0'
-            Confirm-FirewallRule $p
+            Confirm-NetworkAccess $p
         }
     } else {
         Say 'OK, PC-Sahayak will run on this computer only.'
@@ -348,6 +433,7 @@ if ($Network) {
 
 $server = Start-Process -FilePath $VenvPython -ArgumentList @('-m', 'uvicorn', 'api.main:app', '--host', $bindHost, '--port', "$p", '--log-level', 'warning') `
     -WorkingDirectory $Root -NoNewWindow -PassThru
+$null = $server.Handle   # keep a handle so the exit code can be read later
 
 Say 'Loading the knowledge base (the first start can take a minute)...'
 $ready = $false
@@ -373,6 +459,14 @@ if ($shareUrls.Count) {
     Write-Host '  this network is set to Private in Windows Settings > Network & internet.' -ForegroundColor DarkGray
     Write-Host ''
 }
-Write-Host '  Keep this window open while you use it. Close it, or press Ctrl+C, to stop PC-Sahayak.' -ForegroundColor DarkGray
+Write-Host '  Keep this window open while you use it. To stop PC-Sahayak, use the power button in the app,' -ForegroundColor DarkGray
+Write-Host '  close this window, or press Ctrl+C.' -ForegroundColor DarkGray
 Write-Host ''
 $server.WaitForExit()
+if ($server.ExitCode -eq 0) {
+    Write-Host ''
+    Write-Host '  PC-Sahayak was closed. This window will close by itself.' -ForegroundColor Green
+    Start-Sleep -Seconds 2
+    exit 0
+}
+Stop-WithMessage "PC-Sahayak stopped unexpectedly (exit code $($server.ExitCode)). See the messages above."

@@ -8,7 +8,8 @@ import { Intake } from './components/Intake';
 import { Thread, type Pending } from './components/Thread';
 import { Composer } from './components/Composer';
 import { RoutePanel, RouteStrip } from './components/RoutePanel';
-import { Gear, Logo, Menu, Moon, Plus, Sun } from './components/icons';
+import { CloseConfirm } from './components/CloseConfirm';
+import { Gear, Logo, Menu, Moon, Plus, Power, Sun } from './components/icons';
 
 const idFromHash = () => decodeURIComponent(window.location.hash.slice(1)) || null;
 const errorText = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Please try again.');
@@ -44,8 +45,11 @@ export function App() {
   const [intakeKey, setIntakeKey] = useState(0);
   const [drawer, setDrawer] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [closed, setClosed] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const gear = useRef<HTMLButtonElement>(null);
+  const power = useRef<HTMLButtonElement>(null);
   const activeRef = useRef(activeId);
   activeRef.current = activeId;
 
@@ -254,6 +258,33 @@ export function App() {
   }
 
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
+  const cancelClose = useCallback(() => setCloseOpen(false), []);
+
+  async function closeApp() {
+    try {
+      await api.shutdown();
+      setCloseOpen(false);
+      setClosed(true);
+      window.close(); // only works if the browser allows it; otherwise the closed screen stays
+    } catch (e) {
+      say(errorText(e));
+    }
+  }
+
+  if (closed) {
+    return (
+      <div className="app">
+        <div className="loading" role="status">
+          <div className="closed-screen">
+            <Logo />
+            <h1>PC-Sahayak is closed</h1>
+            <p>It has stopped running on this computer and your chats are saved. You can close this tab.</p>
+            <p className="muted">To use it again, double-click <b>Start PC-Sahayak</b>.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (bootError || !meta) {
     return (
@@ -290,11 +321,20 @@ export function App() {
           aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}>
           {isDark ? <Moon /> : <Sun />}
         </button>
-        <button className="iconbtn" type="button" ref={gear} onClick={() => setSettingsOpen(o => !o)}
+        <button className="iconbtn" type="button" ref={gear} onClick={() => { setCloseOpen(false); setSettingsOpen(o => !o); }}
           aria-label="Settings" aria-expanded={settingsOpen} aria-controls="settings">
           <Gear />
         </button>
         <button className="btn-new" type="button" onClick={newProblem}><Plus /><span>New problem</span></button>
+        {meta.is_host && (
+          <button className="iconbtn power" type="button" ref={power} onClick={() => { setSettingsOpen(false); setCloseOpen(o => !o); }}
+            aria-label="Close PC-Sahayak" title="Close PC-Sahayak" aria-expanded={closeOpen} aria-controls="close-confirm">
+            <Power />
+          </button>
+        )}
+        {closeOpen && (
+          <CloseConfirm shared={(meta.share_urls ?? []).length > 0} anchor={power} onConfirm={closeApp} onCancel={cancelClose} />
+        )}
         {settingsOpen && (
           <Settings
             meta={meta} prefs={prefs} chatCount={chats.length} anchor={gear}
