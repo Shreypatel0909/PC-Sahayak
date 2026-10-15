@@ -1,0 +1,65 @@
+# ============================================================================
+# PC Helper & Troubleshooting — application configuration (NON-SECRET).
+#
+# Copy this file to config/config.yaml to customise it, or edit it in place.
+# The app loads config/config.yaml if present, otherwise this example file.
+#
+# The Groq API key does NOT go here — it goes in .env or .streamlit/secrets.toml.
+# Relative paths are resolved against the project root (the pc-helper/ folder).
+# ============================================================================
+
+project:
+  name: "PC Helper & Troubleshooting"
+  description: "Conversational AI assistant for Windows PC support and troubleshooting"
+
+llm:
+  # Models hosted on Groq (carried over from the original prototype).
+  text_model: "openai/gpt-oss-20b"
+  vision_model: "qwen/qwen3.8-27b"     # used when a screenshot is attached; set to a current Groq vision model if needed
+  temperature: 0.3                     # low = focused, deterministic troubleshooting
+  max_tokens: 1000
+  request_timeout_seconds: 60
+  use_rag: true                        # set false to disable retrieval (debug/compare)
+
+knowledge_base:
+  # Folder of Markdown docs the bot retrieves from. Change this to point at a
+  # different knowledge base — no code changes needed — then rebuild the index
+  # (sidebar "Rebuild index" button, or: python -m scripts.reindex_knowledge_base).
+  markdown_directory: "knowledge_base"
+  file_extensions: [".md", ".markdown"]
+  recursive_scan: true
+  chunking:
+    chunk_size: 800
+    chunk_overlap: 120
+  retrieval:
+    top_k: 5
+    similarity_threshold: null         # null = keep top_k; or 0..1 to filter weak matches
+  citations:
+    enabled: true
+
+embeddings:
+  # "auto"  -> sentence-transformers if installed, else the built-in lightweight
+  #            hashing embedder (no heavy dependencies).
+  # "sentence-transformers" -> force the semantic model (requires requirements-ml.txt).
+  # "hashing" -> force the built-in lightweight embedder.
+  backend: "auto"
+  model: "all-MiniLM-L6-v2"
+
+vector_index:
+  path: "data/index"
+
+conversation:
+  max_history_messages: 20
+  store_path: "data/conversations"   # chat history: one JSON file per conversation
+  uploads_path: "data/uploads"       # screenshots attached to chats
+
+ui:
+  # Quick examples shown above the intake form; clicking one fills the issue box.
+  starter_suggestions:
+    - "My laptop is running slowly"
+    - "My Wi-Fi is connected but the internet does not work"
+    - "My laptop gets too hot when gaming"
+    - "My C drive is almost full"
+
+logging:
+  level: "INFO"

@@ -1,0 +1,6 @@
+# OPTIONAL: upgrade retrieval quality with real semantic embeddings.
+# This pulls in PyTorch, which is a large download (hundreds of MB).
+# Install with:  pip install -r requirements-ml.txt
+# Then set embeddings.backend: "sentence-transformers" in config (or leave
+# "auto", which uses this automatically once installed) and re-index.
+sentence-transformers>=3.0

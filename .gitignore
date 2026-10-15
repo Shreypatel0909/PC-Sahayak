@@ -1,4 +1,27 @@
-.streamlit/secrets.toml
+# Secrets — never commit
 .env
-.venv/
+.streamlit/secrets.toml
+
+# Runtime data: vector index + persisted conversations
+data/
+
+# Local config override (keep config.example.yaml committed)
+config/config.yaml
+
+# Python
 __pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Model / HF caches if downloaded into the project
+.cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

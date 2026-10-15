@@ -1,2 +1,14 @@
-streamlit
-groq
+# Core runtime (light, fast to install — the app runs fully with just these).
+streamlit>=1.44          # chat_input file upload (accept_file) requires >= 1.44
+groq>=0.13
+numpy>=1.26
+pyyaml>=6.0
+python-dotenv>=1.0
+
+# Testing
+pytest>=8.0
+
+# NOTE: Higher-quality semantic embeddings are optional and live in
+# requirements-ml.txt (sentence-transformers / torch — a large download).
+# Without them, the app automatically uses a built-in lightweight embedder,
+# so it is runnable immediately. See README "Embeddings".
