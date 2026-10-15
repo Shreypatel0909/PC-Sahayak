@@ -40,6 +40,7 @@ class Message(BaseModel):
     image_path: Optional[str] = None  # relative to the project root
     sources: List[SourceRef] = Field(default_factory=list)
     suggestions: List[str] = Field(default_factory=list)
+    tag: Optional[str] = None  # "off_topic" | "summary" (closing summary once the problem is solved)
 
 
 class SystemSpecs(BaseModel):
@@ -97,6 +98,8 @@ class ConversationState(BaseModel):
 
     status: str = "diagnosing"  # diagnosing | needs_info | resolved | general
     resolution_confirmed: bool = False
+    # Closed once the problem is solved; the user unlocks it to keep chatting.
+    locked: bool = False
 
     # Raw transcript.
     messages: List[Message] = Field(default_factory=list)

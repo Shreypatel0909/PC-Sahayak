@@ -40,7 +40,8 @@ class LLMRuntimeConfig(BaseModel):
     text_model: str = "openai/gpt-oss-20b"
     vision_model: str = "qwen/qwen3.8-27b"
     temperature: float = 0.3
-    max_tokens: int = 1000
+    # gpt-oss models spend part of this budget on hidden reasoning, so keep it generous.
+    max_tokens: int = 4096
     request_timeout_seconds: int = 60
     use_rag: bool = True
 

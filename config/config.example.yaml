@@ -17,7 +17,7 @@ llm:
   text_model: "openai/gpt-oss-20b"
   vision_model: "qwen/qwen3.8-27b"     # used when a screenshot is attached; set to a current Groq vision model if needed
   temperature: 0.3                     # low = focused, deterministic troubleshooting
-  max_tokens: 1000
+  max_tokens: 4096                     # reasoning models use part of this before answering; too low = short replies
   request_timeout_seconds: 60
   use_rag: true                        # set false to disable retrieval (debug/compare)
 

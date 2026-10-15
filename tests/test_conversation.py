@@ -140,3 +140,14 @@ def test_old_conversation_files_still_load(tmp_path):
     (tmp_path / "conv" / "legacy1.json").write_text(json.dumps(legacy), encoding="utf-8")
     state = store.get("legacy1")
     assert state is not None and state.messages[0].kind == "normal" and state.system_specs is None
+
+
+def test_moving_to_a_new_step_completes_the_previous_one():
+    from pc_helper.services.troubleshooting_service import TroubleshootingEngine
+
+    state = ConversationState()
+    TroubleshootingEngine._apply_state_updates(state, {"current_step": "Restart the router"}, "diagnosing", [])
+    TroubleshootingEngine._apply_state_updates(state, {"current_step": "Flush the DNS cache"}, "diagnosing", [])
+    TroubleshootingEngine._apply_state_updates(state, {"current_step": "Flush the DNS cache"}, "diagnosing", [])
+    assert state.completed_steps == ["Restart the router"]
+    assert state.current_step == "Flush the DNS cache"

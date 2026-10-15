@@ -25,3 +25,8 @@ env/
 Thumbs.db
 .vscode/
 .idea/
+
+# React UI (web/)
+web/node_modules/
+web/dist/
+*.tsbuildinfo

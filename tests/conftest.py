@@ -37,6 +37,30 @@ class FakeLLM:
         if use_vision:
             return "I can see a Windows error dialog. **Next step**\n1. Note the exact error code."
 
+        resolving = any(
+            m["role"] == "system" and "confirmed the problem is SOLVED" in m["content"] for m in messages
+        )
+        if resolving or "that worked" in last:
+            return json.dumps({
+                "reply": "**Fixed**\nClosing the busy app fixed it.\n\n**What we did**\n"
+                         "1. Checked CPU usage in Task Manager: one app was at 95%.",
+                "follow_up_question": None,
+                "suggested_answers": [],
+                "status": "resolved",
+                "used_sources": [],
+                "state_updates": {},
+            })
+
+        if "capital of france" in last:
+            return json.dumps({
+                "reply": "I can only help with PC problems. Tell me what's wrong with your computer.",
+                "follow_up_question": None,
+                "suggested_answers": [],
+                "status": "off_topic",
+                "used_sources": [],
+                "state_updates": {"issue_category": "other", "problem_summary": "Geography question"},
+            })
+
         if "delete all" in last and "system file" in last:
             return json.dumps({
                 "reply": "I can't help delete system files — that would break Windows. "

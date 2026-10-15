@@ -131,6 +131,40 @@ copy .env.example .env                           # then set GROQ_API_KEY
 
 ## 7. Running the app
 
+There are two UIs over the same Python core and the same saved chats.
+
+### React UI (new)
+
+The `web/` folder is a React + TypeScript app (built with Vite on Node.js). It
+talks to a small FastAPI server in `api/`, which calls the unchanged `pc_helper`
+engine (Groq, RAG, conversation store). Requires Node.js 18 or later.
+
+```powershell
+# one-time: install the UI's packages and build it
+cd web
+npm install
+npm run build
+cd ..
+
+# run: the API also serves the built UI
+uvicorn api.main:app --port 8000
+```
+
+Open http://localhost:8000. Each problem gets a "fix route" whose colour comes
+from the problem type the assistant assigns (network, hardware, software,
+startup, performance, security, general). Every step you try becomes a stop on
+the route.
+
+For UI development with hot reload, run the API and the Vite dev server in two
+terminals, then open http://localhost:5173 (Vite forwards `/api` to port 8000):
+
+```powershell
+uvicorn api.main:app --reload --port 8000
+cd web; npm run dev
+```
+
+### Streamlit UI (original)
+
 ```powershell
 streamlit run app.py
 ```
